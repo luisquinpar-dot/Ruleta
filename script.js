@@ -8,6 +8,7 @@ const participantsListEl = document.getElementById('participantsList');
 const participantInput = document.getElementById('participantInput');
 const rouletteWheel = document.getElementById('rouletteWheel');
 const spinButton = document.getElementById('spinButton');
+const wheelCenter = document.getElementById('wheelCenter'); // Seleccionamos el botón central
 const winnerDisplay = document.getElementById('winnerDisplay');
 const removeWinnerBtn = document.getElementById('removeWinnerBtn');
 const emptyState = document.querySelector('.empty-state');
@@ -243,3 +244,4 @@ function removeWinner() {
 updateParticipantsList();
 updateRoulette();
 document.addEventListener('click', initAudio, { once: true });
+wheelCenter.addEventListener('click', spinWheel); // Le asignamos la función de girar
