@@ -182,29 +182,27 @@ body {
     border: 10px solid #fff;
     overflow: hidden;
 }
-
-.wheel-segment {
+ 
+.segment-text-container {
     position: absolute;
     top: 0;
-    left: 50%;
-    width: 50%;
-    height: 50%;
-    transform-origin: 0% 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding-left: 25%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
 }
 
 .segment-text {
     color: white;
     font-weight: bold;
     font-size: clamp(0.9rem, 2.5vw, 1.4rem);
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-    transform: rotate(calc(-90deg + 22.5deg)); /* Ajuste de rotación para que el texto sea visible */
-    text-align: center;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+    position: absolute;
+    top: 15%; /* Distancia desde el centro */
+    left: 50%;
+    transform: translateX(-50%) rotate(-90deg); /* Gira el texto para que sea legible */
     white-space: nowrap;
-    max-width: 150px;
+    max-width: 40%;
     overflow: hidden;
     text-overflow: ellipsis;
 }

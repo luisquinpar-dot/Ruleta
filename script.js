@@ -17,9 +17,9 @@ function initAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
-}
+}   
 
-// Generar sonido de ruleta girando
+// Generar sonido de ruleta girando.
 function playSpinSound(duration) {
     initAudio();
     const oscillator = audioContext.createOscillator();
@@ -140,7 +140,7 @@ function updateRoulette() {
     }
 
     const segmentCount = participants.length;
-    spinButton.disabled = segmentCount < 2;
+    spinButton.disabled = segmentCount < 1;
     removeWinnerBtn.style.display = 'none';
 
     if (segmentCount === 0) {
@@ -148,6 +148,7 @@ function updateRoulette() {
         return;
     }
 
+    // --- 1. Generar el fondo con conic-gradient ---
     const anglePerSegment = 360 / segmentCount;
     const colors = [
         '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
@@ -155,35 +156,37 @@ function updateRoulette() {
         '#00b894', '#e84393', '#0984e3', '#00cec9', '#fdcb6e'
     ];
 
+    let gradientParts = [];
     participants.forEach((name, index) => {
-        const segment = document.createElement('div');
-        segment.className = 'wheel-segment';
-        segment.style.backgroundColor = colors[index % colors.length];
-        segment.style.transform = `rotate(${index * anglePerSegment}deg)`;
+        const color = colors[index % colors.length];
+        const startAngle = index * anglePerSegment;
+        const endAngle = (index + 1) * anglePerSegment;
+        gradientParts.push(`${color} ${startAngle}deg ${endAngle}deg`);
+    });
+    rouletteWheel.style.background = `conic-gradient(${gradientParts.join(', ')})`;
 
-        // Usar clip-path para crear la forma de cuña
-        const skewY = 90 - anglePerSegment;
-        segment.style.clipPath = `polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 50% 50%)`;
-        if (segmentCount > 2) {
-             segment.style.clipPath = `polygon(50% 50%, 100% 0, 100% 100%)`;
-             segment.style.width = '50%';
-             segment.style.height = '50%';
-             segment.style.transform = `rotate(${index * anglePerSegment}deg) skewY(-${skewY}deg)`;
-             segment.style.transformOrigin = '0% 100%';
-        }
-
+    // --- 2. Crear y posicionar las etiquetas de texto ---
+    participants.forEach((name, index) => {
+        // Contenedor para el texto que rotará
+        const textContainer = document.createElement('div');
+        textContainer.className = 'segment-text-container';
+        
+        // El elemento de texto en sí
         const text = document.createElement('div');
         text.className = 'segment-text';
         text.textContent = name;
-        text.style.transform = `skewY(${skewY}deg) rotate(${anglePerSegment / 2}deg)`;
 
-        segment.appendChild(text);
-        rouletteWheel.appendChild(segment);
+        // Calcular el ángulo para centrar el texto en el segmento
+        const textAngle = (index * anglePerSegment) + (anglePerSegment / 2);
+        textContainer.style.transform = `rotate(${textAngle}deg)`;
+
+        textContainer.appendChild(text);
+        rouletteWheel.appendChild(textContainer);
     });
 }
 
 function spinWheel() {
-    if (isSpinning || participants.length < 2) return;
+    if (isSpinning || participants.length < 1) return;
 
     initAudio();
     isSpinning = true;
