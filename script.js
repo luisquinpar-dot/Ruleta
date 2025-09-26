@@ -1,209 +1,242 @@
-        // Cargar nombres desde localStorage o usar valores por defecto
-        const savedNames = localStorage.getItem('rouletteNames');
-        let names = savedNames ? JSON.parse(savedNames) : ['Participante 1', 'Participante 2', 'Participante 3', 'Participante 4'];
-        let isSpinning = false;
-        let currentWinner = '';
-        
-        const colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-            '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9'
-        ];
+let participants = [];
+let isSpinning = false;
+let audioContext;
+let winner = null;
 
-        // --- Efectos de Sonido ---
-        // Asegúrate de tener una carpeta 'sounds' con estos archivos.
-        const spinningSound = new Audio('sounds/spinning.mp3'); // Sonido de la ruleta girando
-        spinningSound.loop = true; // El sonido se repetirá mientras gira
+// --- Selectores del DOM ---
+const participantsListEl = document.getElementById('participantsList');
+const participantInput = document.getElementById('participantInput');
+const rouletteWheel = document.getElementById('rouletteWheel');
+const spinButton = document.getElementById('spinButton');
+const winnerDisplay = document.getElementById('winnerDisplay');
+const removeWinnerBtn = document.getElementById('removeWinnerBtn');
+const emptyState = document.querySelector('.empty-state');
 
-        const winnerSound = new Audio('sounds/winner.mp3');   // Sonido al anunciar el ganador
+// Inicializar AudioContext (debe ser llamado desde una interacción del usuario)
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
 
-        // Función para guardar los nombres en localStorage
-        function saveNamesToStorage() {
-            localStorage.setItem('rouletteNames', JSON.stringify(names));
-        }
+// Generar sonido de ruleta girando
+function playSpinSound(duration) {
+    initAudio();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + duration);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    oscillator.type = 'sawtooth';
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+}
 
-        // Función para hacer anuncios a lectores de pantalla
-        function announceToSR(message) {
-            document.getElementById('sr-announcer').textContent = message;
-        }
+// Generar sonido de celebración
+function playCelebrationSound() {
+    initAudio();
+    const frequencies = [523.25, 659.25, 783.99, 1046.50];
+    frequencies.forEach((freq, index) => {
+        setTimeout(() => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }, index * 100);
+    });
+}
 
-        function updateWheel() {
-            const wheel = document.getElementById('wheel');
-            const namesList = document.getElementById('namesList');
-            
-            // Actualizar la ruleta
-            wheel.innerHTML = '';
-            
-            if (names.length === 0) {
-                wheel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #666;">Agrega nombres para comenzar</div>';
-                namesList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No hay participantes</div>';
-                return;
-            }
-            
-            const segmentAngle = 360 / names.length;
-            
-            names.forEach((name, index) => {
-                const segment = document.createElement('div');
-                segment.className = 'wheel-segment';
-                segment.style.background = colors[index % colors.length];
-                segment.style.transform = `rotate(${index * segmentAngle}deg)`;
+// --- Efectos Visuales ---
+function createConfetti() {
+    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7'];
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-20px';
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+            document.body.appendChild(confetti);
+            confetti.animate([
+                { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+                { transform: `translateY(100vh) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+            ], {
+                duration: Math.random() * 2000 + 2000,
+                easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            }).onfinish = () => confetti.remove();
+        }, Math.random() * 1000);
+    }
+}
 
-                // --- Lógica para ajustar el tamaño de la fuente ---
-                let fontSize = 14; // Tamaño base
-                if (name.length > 10) {
-                    fontSize = 12; // Reducir para nombres largos
-                }
-                if (name.length > 15) {
-                    fontSize = 10; // Reducir aún más para nombres muy largos
-                }
-                segment.innerHTML = `<span style="font-size: ${fontSize}px; transform: rotate(90deg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${name}</span>`;
-                wheel.appendChild(segment);
-            });
-            
-            // Actualizar la lista
-            namesList.innerHTML = '';
-            names.forEach((name, index) => {
-                const nameItem = document.createElement('div');
-                nameItem.className = 'name-item';
-                nameItem.innerHTML = `
-                    <span class="name-text">${name}</span>
-                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="removeName(${index})" aria-label="Eliminar a ${name}">×</button>
-                `;
-                namesList.appendChild(nameItem);
-            });
+// --- Gestión de Participantes (Compatible con el HTML) ---
 
-            // Guardar los cambios en localStorage cada vez que se actualiza la UI
-            saveNamesToStorage();
-        }
+function addParticipant() {
+    const name = participantInput.value.trim();
+    if (name && !participants.includes(name)) {
+        participants.push(name);
+        participantInput.value = '';
+        updateParticipantsList();
+        updateRoulette();
+    } else if (participants.includes(name)) {
+        alert('Este participante ya ha sido agregado.');
+    }
+}
 
-        function addName() {
-            const input = document.getElementById('nameInput');
-            const name = input.value.trim();
-            
-            if (name && !names.includes(name)) {
-                names.push(name);
-                input.value = '';
-                updateWheel();
-            } else if (names.includes(name)) {
-                alert('Este nombre ya existe en la lista');
-            } else {
-                alert('Por favor ingresa un nombre válido');
-            }
-        }
+participantInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') {
+        addParticipant();
+    }
+});
 
-        function removeName(index) {
-            names.splice(index, 1);
-            updateWheel();
-        }
+function removeParticipant(nameToRemove) {
+    participants = participants.filter(p => p !== nameToRemove);
+    updateParticipantsList();
+    updateRoulette();
+}
 
-        function clearAll() {
-            if (confirm('¿Estás seguro de que quieres eliminar todos los nombres?')) {
-                names = [];
-                updateWheel();
-            }
-        }
+function clearAllParticipants() {
+    participants = [];
+    updateParticipantsList();
+    updateRoulette();
+}
 
-        function spinWheel() {
-            if (names.length < 2) {
-                alert('Necesitas al menos 2 participantes para girar la ruleta');
-                return;
-            }
-            
-            if (isSpinning) return;
-            
-            isSpinning = true;
-            const wheel = document.getElementById('wheel');
-            const spinBtn = document.getElementById('spinBtn');
-            
-            spinBtn.textContent = 'Girando...';
-            spinBtn.disabled = true;
-            
-            // Iniciar sonido de giro
-            spinningSound.play();
-
-            // Anunciar al lector de pantalla
-            announceToSR('La ruleta está girando.');
-
-            // Resetea la transición para un giro limpio
-            wheel.style.transition = 'none';
-            const currentRotation = Math.random() * 360; // Posición inicial aleatoria para que no se vea el "salto"
-            wheel.style.transform = `rotate(${currentRotation}deg)`;
-
-            // Generar rotación aleatoria
-            const extraSpins = 1440; // Al menos 4 vueltas completas
-            const finalAngle = Math.floor(Math.random() * 360);
-            const totalRotation = extraSpins + finalAngle;
-            
-            // Forzar un reflow del navegador y aplicar la nueva animación.
-            // Usamos un timeout anidado para separar la lógica de la animación de la lógica del resultado.
-            setTimeout(() => {
-                wheel.style.transition = 'transform 4s ease-out';
-                wheel.style.transform = `rotate(${totalRotation}deg)`;
-
-                // Esperar a que la animación termine para anunciar el ganador
-                setTimeout(() => {
-                    // Detener sonido de giro y reproducir sonido de ganador
-                    spinningSound.pause();
-                    spinningSound.currentTime = 0; // Reiniciar para la próxima vez
-
-                    // Calcular ganador
-                    const segmentAngle = 360 / names.length;
-                    const normalizedRotation = totalRotation % 360;
-                    const winnerIndex = Math.floor((360 - normalizedRotation + (segmentAngle / 2)) / segmentAngle) % names.length;
-                    
-                    currentWinner = names[winnerIndex];
-                    showWinnerModal(currentWinner);
-                    
-                    isSpinning = false;
-                    spinBtn.textContent = '¡GIRAR RULETA!';
-                    spinBtn.disabled = false;
-                }, 4000); // Este tiempo debe coincidir con la duración de la transición en CSS
-            }, 10); // Pequeño delay para asegurar el reseteo de la animación
-        }
-
-        function showWinnerModal(winner) {
-            const winnerModal = document.getElementById('winnerModal');
-            const winnerNameEl = document.getElementById('winnerName');
-
-            winnerNameEl.textContent = winner;
-            document.getElementById('overlay').style.display = 'block';
-            winnerModal.style.display = 'block';
-            winnerModal.querySelector('button').focus(); // Mover foco al primer botón del modal
-
-            // Reproducir sonido de ganador junto con el confeti
-            winnerSound.play();
-            // Anunciar al ganador
-            announceToSR(`El ganador es ${winner}`);
-
-            // ¡Lanzar confeti!
-            confetti({
-                particleCount: 150, // Número de partículas de confeti
-                spread: 90,         // Qué tan disperso sale el confeti
-                origin: { y: 0.6 }, // Origen del confeti (un poco por debajo del centro vertical)
-                zIndex: 1001        // Asegurarse de que esté por encima del modal
-            });
-        }
-
-        function closeModal() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('winnerModal').style.display = 'none';
-        }
-
-        function removeWinner() {
-            const winnerIndex = names.indexOf(currentWinner);
-            if (winnerIndex > -1) {
-                names.splice(winnerIndex, 1);
-                updateWheel();
-            }
-            closeModal();
-        }
-
-        // Permitir agregar nombres con Enter
-        document.getElementById('nameInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addName();
-            }
+function updateParticipantsList() {
+    participantsListEl.innerHTML = '';
+    if (participants.length === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'empty-state';
+        emptyEl.textContent = 'No hay participantes agregados';
+        participantsListEl.appendChild(emptyEl);
+    } else {
+        participants.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'participant-item';
+            item.innerHTML = `
+                <span class="participant-name">${name}</span>
+                <button class="btn-remove" onclick="removeParticipant('${name}')">✖</button>
+            `;
+            participantsListEl.appendChild(item);
         });
+    }
+}
+ 
+// --- Lógica de la Ruleta ---
 
-        // Inicializar la ruleta
-        updateWheel();
+function updateRoulette() {
+    const center = rouletteWheel.querySelector('.wheel-center');
+    rouletteWheel.innerHTML = ''; // Limpiar segmentos
+    if (center) {
+        rouletteWheel.appendChild(center); // Re-agregar el centro
+    }
+
+    const segmentCount = participants.length;
+    spinButton.disabled = segmentCount < 2;
+    removeWinnerBtn.style.display = 'none';
+
+    if (segmentCount === 0) {
+        winnerDisplay.firstChild.textContent = 'Agrega participantes para comenzar';
+        return;
+    }
+
+    const anglePerSegment = 360 / segmentCount;
+    const colors = [
+        '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
+        '#fd79a8', '#fdcb6e', '#6c5ce7', '#a29bfe', '#e17055',
+        '#00b894', '#e84393', '#0984e3', '#00cec9', '#fdcb6e'
+    ];
+
+    participants.forEach((name, index) => {
+        const segment = document.createElement('div');
+        segment.className = 'wheel-segment';
+        segment.style.backgroundColor = colors[index % colors.length];
+        segment.style.transform = `rotate(${index * anglePerSegment}deg)`;
+
+        // Usar clip-path para crear la forma de cuña
+        const skewY = 90 - anglePerSegment;
+        segment.style.clipPath = `polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 50% 50%)`;
+        if (segmentCount > 2) {
+             segment.style.clipPath = `polygon(50% 50%, 100% 0, 100% 100%)`;
+             segment.style.width = '50%';
+             segment.style.height = '50%';
+             segment.style.transform = `rotate(${index * anglePerSegment}deg) skewY(-${skewY}deg)`;
+             segment.style.transformOrigin = '0% 100%';
+        }
+
+        const text = document.createElement('div');
+        text.className = 'segment-text';
+        text.textContent = name;
+        text.style.transform = `skewY(${skewY}deg) rotate(${anglePerSegment / 2}deg)`;
+
+        segment.appendChild(text);
+        rouletteWheel.appendChild(segment);
+    });
+}
+
+function spinWheel() {
+    if (isSpinning || participants.length < 2) return;
+
+    initAudio();
+    isSpinning = true;
+    spinButton.disabled = true;
+    spinButton.textContent = 'Girando...';
+    winnerDisplay.firstChild.textContent = 'Girando...';
+    removeWinnerBtn.style.display = 'none';
+
+    const spinDuration = 4;
+    playSpinSound(spinDuration);
+
+    const winnerIndex = Math.floor(Math.random() * participants.length);
+    winner = participants[winnerIndex];
+    const segmentAngle = 360 / participants.length;
+    const targetRotation = 360 - (winnerIndex * segmentAngle) - (segmentAngle / 2);
+    const randomSpins = Math.floor(Math.random() * 5) + 5;
+    const totalRotation = (360 * randomSpins) + targetRotation;
+
+    rouletteWheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    rouletteWheel.style.transform = `rotate(${totalRotation}deg)`;
+
+    setTimeout(() => {
+        winnerDisplay.firstChild.nodeValue = ''; // Limpiar texto "Girando..."
+        winnerDisplay.insertAdjacentHTML('afterbegin', `🎉 <strong>¡GANADOR: ${winner}!</strong> 🎉`);
+        removeWinnerBtn.style.display = 'inline-block';
+
+        playCelebrationSound();
+        createConfetti();
+
+        setTimeout(() => {
+            spinButton.disabled = false;
+            spinButton.textContent = '¡Girar Ruleta!';
+            isSpinning = false;
+        }, 1000);
+
+        // Resetear la transición para futuros giros
+        rouletteWheel.style.transition = 'none';
+        const finalRotation = totalRotation % 360;
+        rouletteWheel.style.transform = `rotate(${finalRotation}deg)`;
+
+    }, spinDuration * 1000);
+}
+
+function removeWinner() {
+    if (winner) {
+        removeParticipant(winner);
+        winner = null;
+        winnerDisplay.firstChild.textContent = '¡Listo para el siguiente giro!';
+        removeWinnerBtn.style.display = 'none';
+    }
+}
+
+// --- Inicialización ---
+updateParticipantsList();
+updateRoulette();
+document.addEventListener('click', initAudio, { once: true });

@@ -3,52 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
-    
-    
-    <title>Ruleta Aleatoria</title>
-    </head>
+    <title>Ruleta Interactiva</title>
+    <link rel="stylesheet" href="styles.css"> 
+</head>
 <body>
-    <h1> Ruleta Aleatoria</h1>
-    
-    <div class="container">
-        <div class="wheel-section">
-            <div class="wheel-container">
-                <div class="wheel-pointer" aria-hidden="true"></div>
-                <div class="wheel" id="wheel"></div>
-                <div class="wheel-center">🎯</div>
+    <div class="main-container">
+        <div class="participants-panel">
+            <h2>Agregar Participantes</h2>
+            
+            <div class="add-participant">
+                <input type="text" id="participantInput" placeholder="Escribe un nombre..." maxlength="20">
+                <button class="btn-add" onclick="addParticipant()">Agregar</button>
             </div>
-            <button class="btn-success spin-btn" id="spinBtn" onclick="spinWheel()">¡GIRAR RULETA!</button>
+            
+            <button class="btn-clear" onclick="clearAllParticipants()">Limpiar Todo</button>
+            
+            <div class="participants-list">
+                <h3>Participantes:</h3>
+                <div id="participantsList">
+                    <div class="empty-state">No hay participantes agregados</div>
+                </div> 
+            </div> 
         </div>
 
-        <div class="control-section">
-            <h2 id="participants-heading">Agregar Participantes</h2>
-            <div class="controls">
-                <div class="input-group">
-                    <input type="text" id="nameInput" placeholder="Escribe un nombre..." maxlength="20" aria-labelledby="participants-heading">
-                    <button class="btn-primary" onclick="addName()">Agregar</button>
+        <div class="roulette-section">
+            <h1>🎯 Ruletrucon 🎯</h1>
+            
+            <div class="roulette-container">
+                <div class="wheel-pointer"></div>
+                <div id="rouletteWheel" class="roulette-wheel">
+                    <div class="wheel-center">SPIN</div>
                 </div>
-                
-                <button class="btn-warning" onclick="clearAll()">Limpiar Todo</button>
-                
-                <h3 style="margin-top: 20px; color: #4a5568;">Participantes:</h3>
-                <div class="names-list" id="namesList"></div>
+            </div>
+
+            <div class="controls">
+                <button id="spinButton" class="spin-button" onclick="spinWheel()">
+                    ¡Girar Ruleta!
+                </button>
+                <div id="winnerDisplay" class="winner-display">
+                    Agrega participantes para comenzar
+                    <button id="removeWinnerBtn" class="remove-winner-btn" onclick="removeWinner()">
+                        Eliminar Ganador
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Elemento para anuncios de lector de pantalla (visualmente oculto) -->
-    <div class="sr-only" id="sr-announcer" role="status" aria-live="polite"></div>
-
-    <div class="overlay" id="overlay"></div>
-    <div class="winner-announcement" id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winner-title">
-        <h3 id="winner-title">🎉 ¡GANADOR! 🎉</h3>
-        <div class="winner-name" id="winnerName"></div>
-        <button class="btn-danger" onclick="removeWinner()">Eliminar Ganador</button>
-        <button class="btn-primary" onclick="closeModal()" style="margin-left: 10px;">Mantener en Lista</button>
-    </div>
-    <!-- Biblioteca para el efecto de confeti- -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    <script src="script.js"></script>
-    </body>
+    <script src="script.js"></script> 
+</body>
 </html>
