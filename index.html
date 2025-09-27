@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta Interactiva</title>
+    <title>Ruletrucon</title>
     <link rel="stylesheet" href="styles.css"> 
 </head>
 <body>
@@ -16,6 +16,11 @@
                 <button class="btn-add" onclick="addParticipant()">Agregar</button>
             </div>
             
+            <div class="import-participants">
+                <input type="file" id="importFile" accept=".txt" style="display: none;">
+                <label for="importFile" class="btn-import">Importar desde .txt</label>
+            </div>
+
             <button class="btn-clear" onclick="clearAllParticipants()">Limpiar Todo</button>
             
             <div class="participants-list">
@@ -32,7 +37,7 @@
             <div class="roulette-container">
                 <div class="wheel-pointer"></div>
                 <div id="rouletteWheel" class="roulette-wheel">
-                    <div id="wheelCenter" class="wheel-center">SPIN</div>
+                    <div id="wheelCenter" class="wheel-center"></div>
                 </div>
             </div>
 
@@ -46,6 +51,19 @@
                         Eliminar Ganador
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventana Modal para el Ganador -->
+    <div id="winnerModal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modalConfettiContainer" class="confetti-container"></div>
+            <h2 class="modal-title">¡Tenemos un Ganador!</h2>
+            <p id="modalWinnerName" class="modal-winner-name"></p>
+            <div class="modal-buttons">
+                <button id="modalRemoveWinnerBtn" class="modal-btn remove">Eliminar y Seguir</button>
+                <button id="modalCloseBtn" class="modal-btn close">Cerrar</button>
             </div>
         </div>
     </div>

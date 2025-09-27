@@ -2,6 +2,13 @@ let participants = [];
 let isSpinning = false;
 let audioContext;
 let winner = null;
+let rouletteColors = [ // Paleta de colores compartida
+    '#8e44ad', '#3498db', '#2ecc71', '#f1c40f', 
+    '#e67e22', '#e74c3c', '#1abc9c', '#d35400',
+    '#27ae60', '#c0392b', '#2980b9', '#f39c12'
+];
+
+
 
 // --- Selectores del DOM ---
 const participantsListEl = document.getElementById('participantsList');
@@ -12,6 +19,13 @@ const wheelCenter = document.getElementById('wheelCenter'); // Seleccionamos el 
 const winnerDisplay = document.getElementById('winnerDisplay');
 const removeWinnerBtn = document.getElementById('removeWinnerBtn');
 const emptyState = document.querySelector('.empty-state');
+const winnerModal = document.getElementById('winnerModal');
+const modalWinnerName = document.getElementById('modalWinnerName');
+const modalRemoveWinnerBtn = document.getElementById('modalRemoveWinnerBtn');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+const importFileInput = document.getElementById('importFile');
+const modalConfettiContainer = document.getElementById('modalConfettiContainer');
+
 
 // Inicializar AudioContext (debe ser llamado desde una interacción del usuario)
 function initAudio() {
@@ -20,20 +34,60 @@ function initAudio() {
     }
 }   
 
-// Generar sonido de ruleta girando.
-function playSpinSound(duration) {
-    initAudio();
+// --- Generación de Sonidos ---
+
+let tickTimer = null; // Para controlar el temporizador de los ticks
+
+// Genera un único sonido de "tick"
+function playTick() {
+    if (!audioContext) return;
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + duration);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-    oscillator.type = 'sawtooth';
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + duration);
+
+    const now = audioContext.currentTime;
+    gainNode.gain.setValueAtTime(0.8, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+    oscillator.frequency.setValueAtTime(1000, now);
+    oscillator.type = 'triangle';
+    oscillator.start(now);
+    oscillator.stop(now + 0.08);
+}
+
+// Gestiona la secuencia de "ticks" para simular el giro
+function playSpinSound(duration, totalRotation, segmentCount) {
+    initAudio();
+    clearTimeout(tickTimer); // Limpiar cualquier temporizador anterior
+
+    if (segmentCount === 0) return;
+
+    const anglePerSegment = 360 / segmentCount;
+    const totalTicks = Math.floor(totalRotation / anglePerSegment) + 1; // Añadimos un tick extra para el aterrizaje
+    const durationMs = duration * 1000;
+
+    // Función de easing que imita la curva CSS `cubic-bezier(0.1, 0.7, 0.3, 1)`.
+    // Esta función mapea el progreso lineal del TIEMPO (de 0 a 1)
+    // a un progreso no lineal de la ROTACIÓN.
+    const easeOut = (time) => {
+        return 1 - Math.pow(1 - time, 4); // Usamos una curva ease-out (potencia 4)
+    };
+
+    // Generamos los ticks a lo largo del tiempo
+    for (let i = 0; i < durationMs; i += 10) { // Revisamos cada 10ms
+        const timeProgress = i / durationMs; // Progreso lineal del tiempo
+        const rotationProgress = easeOut(timeProgress); // Progreso no lineal de la rotación
+
+        // Calculamos cuántos ticks deberían haber sonado hasta este momento
+        const ticksSoFar = Math.floor(rotationProgress * totalTicks);
+        // Calculamos cuántos ticks deberían haber sonado en el paso anterior
+        const prevTicks = Math.floor(easeOut((i - 10) / durationMs) * totalTicks);
+
+        // Si el número de ticks ha aumentado, significa que hemos cruzado un segmento
+        if (ticksSoFar > prevTicks) {
+            setTimeout(playTick, i);
+        }
+    }
 }
 
 // Generar sonido de celebración
@@ -58,24 +112,35 @@ function playCelebrationSound() {
 
 // --- Efectos Visuales ---
 function createConfetti() {
-    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7'];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 200; i++) { // Duplicamos la cantidad para un efecto más denso
         setTimeout(() => {
             const confetti = document.createElement('div');
             confetti.className = 'confetti';
-            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.background = rouletteColors[Math.floor(Math.random() * rouletteColors.length)];
+            confetti.style.left = Math.random() * 100 + 'vw'; // Usamos vw para ancho de viewport
             confetti.style.top = '-20px';
             confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-            document.body.appendChild(confetti);
+            document.body.appendChild(confetti); // Añadimos el confeti al body
             confetti.animate([
-                { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
-                { transform: `translateY(100vh) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+                { transform: `translateY(0) rotate(${Math.random() * 360}deg)`, opacity: 1 },
+                { transform: `translateY(100vh) rotate(${Math.random() * 720}deg)`, opacity: 0 } // Usamos vh para altura de viewport
             ], {
                 duration: Math.random() * 2000 + 2000,
                 easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
             }).onfinish = () => confetti.remove();
         }, Math.random() * 1000);
+    }
+}
+
+// --- Gestión de Almacenamiento Local ---
+function saveParticipants() {
+    localStorage.setItem('rouletteParticipants', JSON.stringify(participants));
+}
+
+function loadParticipants() {
+    const savedParticipants = localStorage.getItem('rouletteParticipants');
+    if (savedParticipants) {
+        participants = JSON.parse(savedParticipants);
     }
 }
 
@@ -86,6 +151,7 @@ function addParticipant() {
     if (name && !participants.includes(name)) {
         participants.push(name);
         participantInput.value = '';
+        saveParticipants();
         updateParticipantsList();
         updateRoulette();
     } else if (participants.includes(name)) {
@@ -99,14 +165,42 @@ participantInput.addEventListener('keyup', (event) => {
     }
 });
 
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        const names = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+        
+        let addedCount = 0;
+        names.forEach(name => {
+            if (name && !participants.includes(name)) {
+                participants.push(name);
+                addedCount++;
+            }
+        });
+
+        saveParticipants();
+        updateParticipantsList();
+        updateRoulette();
+        alert(`${addedCount} participante(s) importado(s) con éxito.`);
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Resetear el input para poder cargar el mismo archivo de nuevo
+}
+
 function removeParticipant(nameToRemove) {
     participants = participants.filter(p => p !== nameToRemove);
+    saveParticipants();
     updateParticipantsList();
     updateRoulette();
 }
 
 function clearAllParticipants() {
     participants = [];
+    saveParticipants();
     updateParticipantsList();
     updateRoulette();
 }
@@ -146,20 +240,17 @@ function updateRoulette() {
 
     if (segmentCount === 0) {
         winnerDisplay.firstChild.textContent = 'Agrega participantes para comenzar';
+        // Establecer un fondo para la ruleta vacía
+        rouletteWheel.style.background = '#e2e8f0';
         return;
     }
 
     // --- 1. Generar el fondo con conic-gradient ---
     const anglePerSegment = 360 / segmentCount;
-    const colors = [
-        '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7',
-        '#fd79a8', '#fdcb6e', '#6c5ce7', '#a29bfe', '#e17055',
-        '#00b894', '#e84393', '#0984e3', '#00cec9', '#fdcb6e'
-    ];
 
     let gradientParts = [];
     participants.forEach((name, index) => {
-        const color = colors[index % colors.length];
+        const color = rouletteColors[index % rouletteColors.length];
         const startAngle = index * anglePerSegment;
         const endAngle = (index + 1) * anglePerSegment;
         gradientParts.push(`${color} ${startAngle}deg ${endAngle}deg`);
@@ -196,8 +287,7 @@ function spinWheel() {
     winnerDisplay.firstChild.textContent = 'Girando...';
     removeWinnerBtn.style.display = 'none';
 
-    const spinDuration = 4;
-    playSpinSound(spinDuration);
+    const spinDuration = 7; // Aumentamos la duración para más suspenso
 
     const winnerIndex = Math.floor(Math.random() * participants.length);
     winner = participants[winnerIndex];
@@ -206,16 +296,14 @@ function spinWheel() {
     const randomSpins = Math.floor(Math.random() * 5) + 5;
     const totalRotation = (360 * randomSpins) + targetRotation;
 
-    rouletteWheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    // Iniciar el sonido de los ticks sincronizado con la animación
+    playSpinSound(spinDuration, totalRotation, participants.length);
+
+    rouletteWheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.1, 0.7, 0.3, 1)`; // Curva de animación para un final lento
     rouletteWheel.style.transform = `rotate(${totalRotation}deg)`;
 
     setTimeout(() => {
-        winnerDisplay.firstChild.nodeValue = ''; // Limpiar texto "Girando..."
-        winnerDisplay.insertAdjacentHTML('afterbegin', `🎉 <strong>¡GANADOR: ${winner}!</strong> 🎉`);
-        removeWinnerBtn.style.display = 'inline-block';
-
-        playCelebrationSound();
-        createConfetti();
+        showWinnerModal(winner);
 
         setTimeout(() => {
             spinButton.disabled = false;
@@ -236,12 +324,39 @@ function removeWinner() {
         removeParticipant(winner);
         winner = null;
         winnerDisplay.firstChild.textContent = '¡Listo para el siguiente giro!';
+        winnerDisplay.style.display = 'flex';
         removeWinnerBtn.style.display = 'none';
     }
 }
 
+// --- Lógica de la Ventana Modal ---
+function showWinnerModal(winnerName) {
+    modalWinnerName.textContent = winnerName;
+    winnerModal.classList.add('active');
+    playCelebrationSound();
+    createConfetti(); // Ya no necesita el contenedor
+
+    // Ocultar el display de ganador anterior
+    winnerDisplay.style.display = 'none';
+}
+
+function hideWinnerModal() {
+    winnerModal.classList.remove('active');
+    // Ya no es necesario limpiar el contenedor, los confetis se auto-eliminan
+}
+
+modalRemoveWinnerBtn.addEventListener('click', () => {
+    removeWinner();
+    hideWinnerModal();
+});
+
+modalCloseBtn.addEventListener('click', hideWinnerModal);
+
 // --- Inicialización ---
+loadParticipants();
 updateParticipantsList();
 updateRoulette();
 document.addEventListener('click', initAudio, { once: true });
+importFileInput.addEventListener('change', handleImportFile);
 wheelCenter.addEventListener('click', spinWheel); // Le asignamos la función de girar
+removeWinnerBtn.addEventListener('click', removeWinner); // Re-asignamos por si acaso
