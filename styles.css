@@ -455,6 +455,11 @@ body {
         flex-direction: column;
     }
     
+    .roulette-wheel {
+        width: clamp(260px, 76vw, 500px); /* Duplicado el valor de vw */
+        height: clamp(260px, 76vw, 500px); /* Duplicado el valor de vw */
+    }
+
     .wheel-segment {
         padding-left: 20%;
     }
