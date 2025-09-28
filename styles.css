@@ -456,7 +456,7 @@ font-family: 'Arial', sans-serif;
     }
     
     .roulette-wheel {
-        width: clamp(260px, 76vw, 500px); /* Duplicado el valor de vw */
+        width: clamp(260px, 76vw, 500px); 
         height: clamp(260px, 76vw, 500px); /* Duplicado el valor de vw */
     }
 

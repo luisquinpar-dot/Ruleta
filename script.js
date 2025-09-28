@@ -9,7 +9,6 @@ let rouletteColors = [ // Paleta de colores compartida
 ];
 
 
-
 // --- Selectores del DOM ---
 const participantsListEl = document.getElementById('participantsList');
 const participantInput = document.getElementById('participantInput');
